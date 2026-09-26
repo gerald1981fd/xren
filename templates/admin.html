@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Адмін-панель товарів</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; background: #f7f7f8; margin: 0; color: #1f2124; }
+        header { background: #1f2124; color: #fff; padding: 20px 24px; display: flex; justify-content: space-between; align-items: center; }
+        header a { color: #fff; text-decoration: none; font-size: 14px; }
+        main { max-width: 1000px; margin: 0 auto; padding: 24px; }
+        .flash { background: #fef3c7; border: 1px solid #fbbf24; padding: 8px 12px; border-radius: 6px; font-size: 13px; margin-bottom: 16px; }
+
+        .panel { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 24px; }
+        .panel h2 { margin-top: 0; font-size: 16px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .form-grid .full { grid-column: 1 / -1; }
+        label { font-size: 12px; color: #666; display: block; margin-bottom: 4px; }
+        input, textarea {
+            width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;
+        }
+        textarea { resize: vertical; min-height: 60px; }
+        button.primary {
+            margin-top: 14px; padding: 10px 18px; border: none; border-radius: 6px;
+            background: #16a34a; color: #fff; font-weight: 600; cursor: pointer;
+        }
+
+        table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 10px; overflow: hidden; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee; font-size: 13px; vertical-align: middle; }
+        th { background: #f0f0f1; font-size: 12px; text-transform: uppercase; color: #666; }
+        img.thumb { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; background: #eee; }
+        .actions a, .actions button {
+            font-size: 12px; text-decoration: none; margin-right: 8px; cursor: pointer; border: none; background: none;
+        }
+        .actions a { color: #2563eb; }
+        .actions button { color: #dc2626; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1 style="margin:0;font-size:20px;">Адмін-панель — Товари</h1>
+        <div>
+            <a href="{{ url_for('index') }}" style="margin-right:16px;">На сайт</a>
+            <a href="{{ url_for('admin_logout') }}">Вийти</a>
+        </div>
+    </header>
+
+    <main>
+        {% with messages = get_flashed_messages() %}
+            {% for m in messages %}
+                <div class="flash">{{ m }}</div>
+            {% endfor %}
+        {% endwith %}
+
+        <div class="panel">
+            <h2>Додати товар</h2>
+            <form method="post">
+                <div class="form-grid">
+                    <div>
+                        <label>Назва</label>
+                        <input type="text" name="name" required>
+                    </div>
+                    <div>
+                        <label>URL фото</label>
+                        <input type="url" name="image_url" placeholder="https://...">
+                    </div>
+                    <div>
+                        <label>Ціна, грн</label>
+                        <input type="number" step="0.01" min="0" name="price" required>
+                    </div>
+                    <div>
+                        <label>Знижка, %</label>
+                        <input type="number" step="0.01" min="0" max="100" name="discount_percent" value="0">
+                    </div>
+                    <div class="full">
+                        <label>Опис</label>
+                        <textarea name="description"></textarea>
+                    </div>
+                </div>
+                <button type="submit" class="primary">Додати товар</button>
+            </form>
+        </div>
+
+        <div class="panel">
+            <h2>Усі товари ({{ products|length }})</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Фото</th>
+                        <th>Назва</th>
+                        <th>Ціна</th>
+                        <th>Знижка</th>
+                        <th>Дії</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in products %}
+                    <tr>
+                        <td><img class="thumb" src="{{ p.image_url or 'https://placehold.co/60x60?text=—' }}" alt=""></td>
+                        <td>{{ p.name }}</td>
+                        <td>{{ '%.2f'|format(p.price) }} грн</td>
+                        <td>{{ p.discount_percent|round|int }}%</td>
+                        <td class="actions">
+                            <a href="{{ url_for('admin_edit', product_id=p.id) }}">Редагувати</a>
+                            <form action="{{ url_for('admin_delete', product_id=p.id) }}" method="post" style="display:inline"
+                                  onsubmit="return confirm('Видалити товар «{{ p.name }}»?');">
+                                <button type="submit">Видалити</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5">Товарів поки немає.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </main>
+</body>
+</html>
