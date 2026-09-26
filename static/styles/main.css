@@ -1,0 +1,119 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: #f7f7f8;
+    margin: 0;
+    color: #1f2124;
+}
+
+header {
+    background: #1f2124;
+    color: #fff;
+    padding: 20px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+header h1 {
+    margin: 0;
+    font-size: 22px;
+}
+
+header a {
+    color: #fff;
+    text-decoration: none;
+    font-size: 14px;
+    border: 1px solid rgba(255, 255, 255, .4);
+    padding: 6px 12px;
+    border-radius: 6px;
+}
+
+header a:hover {
+    background: rgba(255, 255, 255, .1);
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 20px;
+    padding: 24px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.card {
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .08);
+    display: flex;
+    flex-direction: column;
+}
+
+.card img {
+    height: 100%;
+    min-height: 300px;
+    /* aspect-ratio: 1 / 1; */
+    object-fit: cover;
+    background: #eee;
+}
+
+.card-body {
+    padding: 14px 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+}
+
+.card h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.card p.desc {
+    margin: 0;
+    font-size: 13px;
+    color: #666;
+    flex: 1;
+}
+
+.price-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+.price-final {
+    font-size: 18px;
+    font-weight: 700;
+    color: #16a34a;
+}
+
+.price-old {
+    font-size: 13px;
+    color: #999;
+    text-decoration: line-through;
+}
+
+.badge {
+    display: inline-block;
+    background: #dc2626;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    width: fit-content;
+}
+
+.empty {
+    text-align: center;
+    color: #888;
+    padding: 60px 20px;
+}
