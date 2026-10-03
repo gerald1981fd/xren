@@ -165,5 +165,123 @@ def admin_delete(product_id):
     return redirect(url_for("admin_panel"))
 
 
+# --- Кошик (зберігається в сесії: {product_id: кількість}) -----------------------
+MAX_QTY = 99
+
+
+def get_cart() -> dict:
+    return session.get("cart", {})
+
+
+def parse_qty(raw, default=1) -> int:
+    try:
+        qty = int(raw)
+    except (TypeError, ValueError):
+        return default
+    return max(0, min(qty, MAX_QTY))
+
+
+@app.context_processor
+def inject_cart_count():
+    """Лічильник товарів у кошику доступний в усіх шаблонах як cart_count."""
+    return {"cart_count": sum(get_cart().values())}
+
+
+def load_cart_items():
+    """Підтягує товари кошика з БД. Ціни беруться ТІЛЬКИ з бази, а не з форми."""
+    cart = get_cart()
+    if not cart:
+        return [], 0.0
+    ids = [int(i) for i in cart.keys()]
+    result = public_client.table("products").select("*").in_("id", ids).execute()
+    items, total = [], 0.0
+    for p in result.data or []:
+        qty = cart.get(str(p["id"]), 0)
+        unit = calc_final_price(p["price"], p.get("discount_percent"))
+        line = round(unit * qty, 2)
+        total += line
+        items.append({"product": p, "qty": qty, "unit_price": unit, "line_total": line})
+    return items, round(total, 2)
+
+
+@app.route("/cart/add/<int:product_id>", methods=["POST"])
+def cart_add(product_id):
+    qty = parse_qty(request.form.get("quantity"), default=1)
+    if qty < 1:
+        flash("Вкажіть кількість від 1")
+        return redirect(request.referrer or url_for("index"))
+    cart = get_cart()
+    key = str(product_id)
+    cart[key] = min(cart.get(key, 0) + qty, MAX_QTY)
+    session["cart"] = cart
+    flash("Товар додано в кошик")
+    return redirect(request.referrer or url_for("index"))
+
+
+@app.route("/cart")
+def cart_view():
+    items, total = load_cart_items()
+    return render_template("cart.html", items=items, total=total)
+
+
+@app.route("/cart/update/<int:product_id>", methods=["POST"])
+def cart_update(product_id):
+    qty = parse_qty(request.form.get("quantity"), default=1)
+    cart = get_cart()
+    if qty < 1:
+        cart.pop(str(product_id), None)
+    else:
+        cart[str(product_id)] = qty
+    session["cart"] = cart
+    return redirect(url_for("cart_view"))
+
+
+@app.route("/cart/remove/<int:product_id>", methods=["POST"])
+def cart_remove(product_id):
+    cart = get_cart()
+    cart.pop(str(product_id), None)
+    session["cart"] = cart
+    return redirect(url_for("cart_view"))
+
+
+@app.route("/cart/checkout", methods=["POST"])
+def cart_checkout():
+    items, total = load_cart_items()
+    if not items:
+        flash("Кошик порожній")
+        return redirect(url_for("cart_view"))
+
+    customer_name = request.form.get("customer_name", "").strip()
+    phone = request.form.get("phone", "").strip()
+    if not customer_name or not phone:
+        flash("Вкажіть ім'я та телефон")
+        return redirect(url_for("cart_view"))
+
+    order = {
+        "customer_name": customer_name,
+        "phone": phone,
+        "total": total,
+        "items": [
+            {
+                "product_id": i["product"]["id"],
+                "name": i["product"]["name"],
+                "qty": i["qty"],
+                "unit_price": i["unit_price"],
+                "line_total": i["line_total"],
+            }
+            for i in items
+        ],
+    }
+    try:
+        admin_client.table("orders").insert(order).execute()
+    except Exception:
+        app.logger.exception("Не вдалося зберегти замовлення")
+        flash("Не вдалося оформити замовлення, спробуйте пізніше")
+        return redirect(url_for("cart_view"))
+
+    session.pop("cart", None)
+    return render_template("order_success.html", total=total)
+
+
 if __name__ == "__main__":
     app.run(debug=True)

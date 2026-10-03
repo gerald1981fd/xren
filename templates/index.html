@@ -1,14 +1,20 @@
 <!DOCTYPE html>
 <html lang="uk">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Каталог товарів</title>
-    <link text="text/css"  href="{{ url_for('static', filename='styles/main.css') }}" rel="stylesheet">
+    <link text="text/css" href="{{ url_for('static', filename='styles/main.css') }}" rel="stylesheet">
 </head>
+
 <body>
+    {% with messages = get_flashed_messages() %}
+    {% for m in messages %}<div>{{ m }}</div>{% endfor %}
+    {% endwith %}
     <header>
         <h1>Каталог товарів</h1>
+        <a href="{{ url_for('cart_view') }}">🛒 Кошик ({{ cart_count }})</a>
         <!-- <a href="{{ url_for('admin_login') }}">Адмін-панель</a> -->
     </header>
 
@@ -16,28 +22,32 @@
     <div class="grid">
         {% for product in products %}
         <div class="card">
-            <img src="{{ product.image_url or 'https://placehold.co/400x400?text=No+image' }}"
-                 alt="{{ product.name }}">
+            <img src="{{ product.image_url or 'https://placehold.co/400x400?text=No+image' }}" alt="{{ product.name }}">
             <div class="card-body">
                 {% if product.discount_percent and product.discount_percent > 0 %}
-                    <span class="badge">-{{ product.discount_percent|round|int }}%</span>
+                <span class="badge">-{{ product.discount_percent|round|int }}%</span>
                 {% endif %}
                 <h3>{{ product.name }}</h3>
                 {% if product.description %}
-                    <p class="desc">{{ product.description }}</p>
+                <p class="desc">{{ product.description }}</p>
                 {% endif %}
                 <div class="price-row">
                     <span class="price-final">{{ '%.2f'|format(product.final_price) }} грн</span>
                     {% if product.discount_percent and product.discount_percent > 0 %}
-                        <span class="price-old">{{ '%.2f'|format(product.price) }} грн</span>
+                    <span class="price-old">{{ '%.2f'|format(product.price) }} грн</span>
                     {% endif %}
                 </div>
             </div>
+            <form method="post" action="{{ url_for('cart_add', product_id=p.id) }}">
+                <input type="number" name="quantity" value="1" min="1" max="99" style="width:70px">
+                <button type="submit">Вибрати</button>
+            </form>
         </div>
         {% endfor %}
     </div>
     {% else %}
-        <p class="empty">Товарів поки немає.</p>
+    <p class="empty">Товарів поки немає.</p>
     {% endif %}
 </body>
+
 </html>

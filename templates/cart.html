@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Кошик</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 900px; margin: 0 auto; padding: 16px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px 8px; border-bottom: 1px solid #ddd; text-align: left; vertical-align: middle; }
+    img { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; }
+    input[type=number] { width: 70px; padding: 4px; }
+    input[type=text] { padding: 8px; width: 100%; box-sizing: border-box; margin-bottom: 8px; }
+    button { padding: 8px 14px; cursor: pointer; }
+    .total { font-size: 1.3em; font-weight: bold; text-align: right; margin: 16px 0; }
+    .flash { background: #fff3cd; padding: 8px 12px; border-radius: 6px; margin-bottom: 8px; }
+    .inline { display: inline; }
+  </style>
+</head>
+<body>
+  <p><a href="{{ url_for('index') }}">← Продовжити покупки</a></p>
+  <h1>Кошик</h1>
+
+  {% with messages = get_flashed_messages() %}
+    {% for m in messages %}<div class="flash">{{ m }}</div>{% endfor %}
+  {% endwith %}
+
+  {% if not items %}
+    <p>Кошик порожній.</p>
+  {% else %}
+    <table>
+      <thead>
+        <tr><th></th><th>Товар</th><th>Ціна</th><th>Кількість</th><th>Сума</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for i in items %}
+        <tr>
+          <td>{% if i.product.image_url %}<img src="{{ i.product.image_url }}" alt="">{% endif %}</td>
+          <td>{{ i.product.name }}</td>
+          <td>{{ "%.2f"|format(i.unit_price) }}</td>
+          <td>
+            <form class="inline" method="post" action="{{ url_for('cart_update', product_id=i.product.id) }}">
+              <input type="number" name="quantity" value="{{ i.qty }}" min="0" max="99">
+              <button type="submit">Оновити</button>
+            </form>
+          </td>
+          <td>{{ "%.2f"|format(i.line_total) }}</td>
+          <td>
+            <form class="inline" method="post" action="{{ url_for('cart_remove', product_id=i.product.id) }}">
+              <button type="submit">✕</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="total">Разом: {{ "%.2f"|format(total) }}</div>
+
+    <h2>Оформлення замовлення</h2>
+    <form method="post" action="{{ url_for('cart_checkout') }}">
+      <input type="text" name="customer_name" placeholder="Ваше ім'я" required>
+      <input type="text" name="phone" placeholder="Телефон" required>
+      <button type="submit">Купити</button>
+    </form>
+  {% endif %}
+</body>
+</html>

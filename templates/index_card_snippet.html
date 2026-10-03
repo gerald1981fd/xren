@@ -1,0 +1,13 @@
+<!-- 1) Вставте всередину картки товару в templates/index.html (там, де цикл по products) -->
+<form method="post" action="{{ url_for('cart_add', product_id=p.id) }}">
+  <input type="number" name="quantity" value="1" min="1" max="99" style="width:70px">
+  <button type="submit">Вибрати</button>
+</form>
+
+<!-- 2) Посилання на кошик з лічильником - у шапку сторінки -->
+<a href="{{ url_for('cart_view') }}">🛒 Кошик ({{ cart_count }})</a>
+
+<!-- 3) Щоб показувались повідомлення "Товар додано в кошик" - десь угорі сторінки -->
+{% with messages = get_flashed_messages() %}
+  {% for m in messages %}<div>{{ m }}</div>{% endfor %}
+{% endwith %}

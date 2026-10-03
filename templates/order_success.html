@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Замовлення оформлено</title>
+  <style>body { font-family: system-ui, sans-serif; max-width: 600px; margin: 60px auto; text-align: center; }</style>
+</head>
+<body>
+  <h1>Дякуємо за замовлення! 🎉</h1>
+  <p>Сума замовлення: <strong>{{ "%.2f"|format(total) }}</strong></p>
+  <p>Ми зв'яжемося з вами найближчим часом.</p>
+  <p><a href="{{ url_for('index') }}">Повернутися до товарів</a></p>
+</body>
+</html>
