@@ -2,6 +2,7 @@ import os
 from functools import wraps
 
 from flask import Flask, render_template, request, redirect, url_for, session, flash
+from werkzeug.security import generate_password_hash, check_password_hash
 from supabase import create_client, Client
 from dotenv import load_dotenv
 
@@ -32,6 +33,24 @@ def login_required(view):
             return redirect(url_for("admin_login"))
         return view(*args, **kwargs)
     return wrapped
+
+
+def customer_required(view):
+    """Купувати можуть лише зареєстровані (залогінені) покупці."""
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if not session.get("customer_id"):
+            flash("Щоб купувати, увійдіть або зареєструйтесь")
+            return redirect(url_for("customer_login", next=request.path))
+        return view(*args, **kwargs)
+    return wrapped
+
+
+def safe_next(target):
+    """Дозволяє редірект лише на внутрішні адреси."""
+    if target and target.startswith("/") and not target.startswith("//"):
+        return target
+    return url_for("index")
 
 
 def calc_final_price(price: float, discount_percent: float) -> float:
@@ -87,6 +106,88 @@ def index():
     for p in products:
         p["final_price"] = calc_final_price(p["price"], p.get("discount_percent"))
     return render_template("index.html", products=products)
+
+
+# --- Реєстрація / вхід покупця -----------------------------------------------
+@app.context_processor
+def inject_customer():
+    return {"customer_name": session.get("customer_name")}
+
+
+@app.route("/register", methods=["GET", "POST"])
+def customer_register():
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        email = request.form.get("email", "").strip().lower()
+        phone = request.form.get("phone", "").strip()
+        password = request.form.get("password", "")
+        password2 = request.form.get("password2", "")
+
+        errors = []
+        if not name:
+            errors.append("Вкажіть ім'я")
+        if "@" not in email or "." not in email:
+            errors.append("Вкажіть коректний email")
+        if not phone:
+            errors.append("Вкажіть телефон")
+        if len(password) < 6:
+            errors.append("Пароль має містити щонайменше 6 символів")
+        if password != password2:
+            errors.append("Паролі не збігаються")
+
+        if not errors:
+            exists = (
+                admin_client.table("customers").select("id").eq("email", email).execute()
+            )
+            if exists.data:
+                errors.append("Користувач з таким email вже існує")
+
+        if errors:
+            for e in errors:
+                flash(e)
+            return render_template("register.html", name=name, email=email, phone=phone)
+
+        result = (
+            admin_client.table("customers")
+            .insert({
+                "name": name,
+                "email": email,
+                "phone": phone,
+                "password_hash": generate_password_hash(password),
+            })
+            .execute()
+        )
+        customer = result.data[0]
+        session["customer_id"] = customer["id"]
+        session["customer_name"] = customer["name"]
+        flash("Реєстрацію завершено")
+        return redirect(safe_next(request.args.get("next")))
+    return render_template("register.html", name="", email="", phone="")
+
+
+@app.route("/login", methods=["GET", "POST"])
+def customer_login():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
+        result = (
+            admin_client.table("customers").select("*").eq("email", email).execute()
+        )
+        customer = result.data[0] if result.data else None
+        if customer and check_password_hash(customer["password_hash"], password):
+            session["customer_id"] = customer["id"]
+            session["customer_name"] = customer["name"]
+            return redirect(safe_next(request.args.get("next")))
+        flash("Невірний email або пароль")
+    return render_template("login.html")
+
+
+@app.route("/logout")
+def customer_logout():
+    session.pop("customer_id", None)
+    session.pop("customer_name", None)
+    session.pop("cart", None)
+    return redirect(url_for("index"))
 
 
 # --- Авторизація адміна -----------------------------------------------------
@@ -205,6 +306,7 @@ def load_cart_items():
 
 
 @app.route("/cart/add/<int:product_id>", methods=["POST"])
+@customer_required
 def cart_add(product_id):
     qty = parse_qty(request.form.get("quantity"), default=1)
     if qty < 1:
@@ -219,12 +321,14 @@ def cart_add(product_id):
 
 
 @app.route("/cart")
+@customer_required
 def cart_view():
     items, total = load_cart_items()
     return render_template("cart.html", items=items, total=total)
 
 
 @app.route("/cart/update/<int:product_id>", methods=["POST"])
+@customer_required
 def cart_update(product_id):
     qty = parse_qty(request.form.get("quantity"), default=1)
     cart = get_cart()
@@ -237,6 +341,7 @@ def cart_update(product_id):
 
 
 @app.route("/cart/remove/<int:product_id>", methods=["POST"])
+@customer_required
 def cart_remove(product_id):
     cart = get_cart()
     cart.pop(str(product_id), None)
@@ -245,6 +350,7 @@ def cart_remove(product_id):
 
 
 @app.route("/cart/checkout", methods=["POST"])
+@customer_required
 def cart_checkout():
     items, total = load_cart_items()
     if not items:
@@ -258,6 +364,7 @@ def cart_checkout():
         return redirect(url_for("cart_view"))
 
     order = {
+        "customer_id": session["customer_id"],
         "customer_name": customer_name,
         "phone": phone,
         "total": total,
